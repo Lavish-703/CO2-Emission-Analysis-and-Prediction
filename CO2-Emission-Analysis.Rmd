@@ -1,0 +1,350 @@
+---
+title: "FDA J-Comp Review-2 Prediction Models"
+output: pdf_document
+---
+
+**Visualization**
+```{r}
+#Density Plot of CO2 over the dataset
+library(lattice)
+densityplot(df_train$co2, main = "Global Densilty of CO2")
+```
+
+```{r}
+#Composition of Global CO2 share
+library(ggplot2)
+m1 <- mean(df_train$share_global_cement_co2)
+m2 <- mean(df_train$share_global_coal_co2)
+m3 <- mean(df_train$share_global_flaring_co2)
+m4 <- mean(df_train$share_global_gas_co2)
+m5 <- mean(df_train$share_global_oil_co2)
+
+slices <- c(m1,m2,m3,m4,m5)
+lbls <- c("Cement","Coal","Flaring","Gas","Oil")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls,pct)
+lbls <- paste(lbls,"%",sep="")
+pie(slices,labels=lbls,col=rainbow(length(lbls)),main="Pie Chart for Global Share of CO2 from Various Sources")
+print(pie)
+```
+
+```{r}
+#Visualization for China,United States,India
+library(ggplot2)
+China   = subset(df_train,country==5)
+UnitedStates  = subset(df_train,country==18)
+India  = subset(df_train,country==9)
+
+#Population,GDP v/s Year
+ggplot(China,aes(x=year)) + geom_line(aes(y=gdp),color="red") + geom_line(aes(y=population),color="blue")
+
+ggplot(UnitedStates,aes(x=year)) + geom_line(aes(y=gdp),color="red") + geom_line(aes(y=population),color="blue")
+
+ggplot(India,aes(x=year)) + geom_line(aes(y=gdp),color="red") + geom_line(aes(y=population),color="blue")
+
+```
+
+```{r}
+library(graphics)
+boxplot(China[,9:13],col="orange",border="black")
+boxplot(UnitedStates[,9:13],col="blue",border="black")
+boxplot(India[,9:13],col="green",border="black")
+```
+
+**Imputing NA Values with 0**
+```{r}
+df_train <- read.csv("Training_Dataset.csv")
+df_test <- read.csv("Testing_Dataset.csv")
+
+#Encoding datasets
+df_train$country = factor(df_train$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+df_test$country = factor(df_test$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+#Imputing NA values with 0
+df_train[is.na(df_train)] = 0
+df_test[is.na(df_test)] = 0
+
+#original values vector
+orig <- c(df_test$share_global_co2)
+library(caret)
+```
+
+<br>
+
+**Model-1 : Multiple Linear Regression**
+```{r}
+print("1. Multiple Linear Regression")
+regressor = lm(formula = share_global_co2 ~ .,
+               data = df_train)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+summary(regressor)
+```
+
+<br>
+
+**Model-2 : Support Vector Regression**
+```{r}
+library(e1071)
+print("2. Support Vector Regression")
+regressor = svm(formula = share_global_co2 ~ .,
+                data = df_train,
+                type = 'eps-regression',
+                kernel = 'radial')
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-3 : Decision Tree Regression**
+```{r}
+library(rpart)
+print("3. Decision Tree Regression")
+regressor = rpart(formula = share_global_co2 ~ .,
+                  data = df_train,
+                  control = rpart.control(minsplit = 1))
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-4 : Random Forest Regression**
+```{r}
+print("4. Random Forest Regression")
+library(randomForest)
+set.seed(1234)
+regressor = randomForest(x = df_train[,1:19],
+                         y = df_train$share_global_co2,
+                         ntree = 500)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+<br>
+
+
+**Imputing NA Values with mean**
+```{r}
+df_train <- read.csv("Training_Dataset.csv")
+df_test <- read.csv("Testing_Dataset.csv")
+
+#Encoding datasets
+df_train$country = factor(df_train$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+df_test$country = factor(df_test$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+#Imputing NA values with mean
+for(i in 2:ncol(df_train)) {
+  df_train[ , i][is.na(df_train[ , i])] <- mean(df_train[ , i], na.rm = TRUE)
+}
+for(i in 2:ncol(df_test)) {
+  df_test[ , i][is.na(df_test[ , i])] <- mean(df_test[ , i], na.rm = TRUE)
+}
+
+#original values vector
+orig <- c(df_test$share_global_co2)
+library(caret)
+```
+<br>
+
+**Model-1 : Multiple Linear Regression**
+```{r}
+print("1. Multiple Linear Regression")
+regressor = lm(formula = share_global_co2 ~ .,
+               data = df_train)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+summary(regressor)
+```
+
+<br>
+
+**Model-2 : Support Vector Regression**
+```{r}
+library(e1071)
+print("2. Support Vector Regression")
+regressor = svm(formula = share_global_co2 ~ .,
+                data = df_train,
+                type = 'eps-regression',
+                kernel = 'radial')
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-3 : Decision Tree Regression**
+```{r}
+library(rpart)
+print("3. Decision Tree Regression")
+regressor = rpart(formula = share_global_co2 ~ .,
+                  data = df_train,
+                  control = rpart.control(minsplit = 1))
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-4 : Random Forest Regression**
+```{r}
+print("4. Random Forest Regression")
+library(randomForest)
+set.seed(1234)
+regressor = randomForest(x = df_train[,1:19],
+                         y = df_train$share_global_co2,
+                         ntree = 500)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Imputing NA Values with median**
+```{r}
+df_train <- read.csv("Training_Dataset.csv")
+df_test <- read.csv("Testing_Dataset.csv")
+
+#Encoding datasets
+df_train$country = factor(df_train$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+df_test$country = factor(df_test$country,levels=c('Argentina','Australia','Bangladesh','Brazil','China','France','Germany','Hong Kong','India','Italy','Japan','Mexico','Portugal','Russia','South Africa','Turkey','United Kingdom','United States'),labels=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18))
+
+#Imputing NA values with median
+for(i in 2:ncol(df_train)) {
+  df_train[ , i][is.na(df_train[ , i])] <- median(df_train[ , i], na.rm = TRUE)
+}
+for(i in 2:ncol(df_test)) {
+  df_test[ , i][is.na(df_test[ , i])] <- median(df_test[ , i], na.rm = TRUE)
+}
+
+#original values vector
+orig <- c(df_test$share_global_co2)
+library(caret)
+```
+<br>
+
+**Model-1 : Multiple Linear Regression**
+```{r}
+print("1. Multiple Linear Regression")
+regressor = lm(formula = share_global_co2 ~ .,
+               data = df_train)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+summary(regressor)
+```
+
+<br>
+
+**Model-2 : Support Vector Regression**
+```{r}
+library(e1071)
+print("2. Support Vector Regression")
+regressor = svm(formula = share_global_co2 ~ .,
+                data = df_train,
+                type = 'eps-regression',
+                kernel = 'radial')
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-3 : Decision Tree Regression**
+```{r}
+library(rpart)
+print("3. Decision Tree Regression")
+regressor = rpart(formula = share_global_co2 ~ .,
+                  data = df_train,
+                  control = rpart.control(minsplit = 1))
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
+
+<br>
+
+**Model-4 : Random Forest Regression**
+```{r}
+print("4. Random Forest Regression")
+library(randomForest)
+set.seed(1234)
+regressor = randomForest(x = df_train[,1:19],
+                         y = df_train$share_global_co2,
+                         ntree = 500)
+y_pred = predict(regressor, newdata = df_test)
+pred <- c(y_pred)
+
+#Measure of Accuracy
+mae <- MAE(pred,orig)
+rmse <- RMSE(pred,orig)
+print(paste("Mean Absolute Error : ",mae))
+print(paste("Root Mean Square Error : ",rmse))
+```
